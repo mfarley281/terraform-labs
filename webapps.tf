@@ -1,6 +1,6 @@
 resource "azurerm_resource_group" "webapps" {
     name        = "webapps"
-    location    = var.loc
+    location    = "westeurope"
 }
 resource "random_string" "webapprnd" {
   length  = 8
@@ -11,24 +11,31 @@ resource "random_string" "webapprnd" {
 }
 
 resource "azurerm_app_service_plan" "free" {
-    name                = "plan-free-${var.loc}"
-    location            = var.loc
-    resource_group_name = azurerm_resource_group.webapps.name
-    tags                = azurerm_resource_group.webapps.tags
+    count               = length(var.webapplocs)
+    name                = "plan-free-${random_string.webapprnd.result}-${var.webapplocs[count.index]}"
+    location            = var.webapplocs[count.index]
+    resource_group_name = element(azurerm_resource_group.webapps.*.name, count.index)
+    tags                = element(azurerm_resource_group.webapps.*.tags, count.index)
 
     kind                = "Linux"
     reserved            = true
     sku {
-        tier = "Free"
-        size = "F1"
+        tier = "Standard"
+        size = "S1"
     }
 }
 
 resource "azurerm_app_service" "citadel" {
-    name                = "webapp-${random_string.webapprnd.result}-${var.loc}"
-    location            = var.loc
-    resource_group_name = azurerm_resource_group.webapps.name
-    tags                = azurerm_resource_group.webapps.tags
+    count               = length(var.webapplocs)
+    name                = "webapp-${random_string.webapprnd.result}-${var.webapplocs[count.index]}"
+    location            = var.webapplocs[count.index]
+    resource_group_name = element(azurerm_resource_group.webapps.*.name, count.index)
+    tags                = element(azurerm_resource_group.webapps.*.tags, count.index)
 
-    app_service_plan_id = azurerm_app_service_plan.free.id
+    app_service_plan_id = element(azurerm_app_service_plan.free.*.id, count.index)
+}
+
+output "webapp_ids" {
+    description = "The IDs of each webapp provisioned"
+    value       = azurerm_app_service_plan.free.*.id
 }
